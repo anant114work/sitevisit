@@ -6,17 +6,17 @@ from email.mime.multipart import MIMEMultipart
 
 logger = logging.getLogger(__name__)
 
-# Email SMTP Configuration - Configure with your email provider
-SMTP_SERVER = "smtp.example.com"
+# SendGrid SMTP Configuration
+SMTP_SERVER = "smtp.sendgrid.net"
 SMTP_PORT = 587
-SMTP_USERNAME = "your_username"
-SMTP_PASSWORD = "your_password"
-FROM_EMAIL = "noreply@example.com"
-EMAIL_ENABLED = False  # Set to True after configuring
+SMTP_USERNAME = "apikey"
+SMTP_PASSWORD = "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"
+FROM_EMAIL = "migsunr@gmail.com"
+EMAIL_ENABLED = True  # Email verified in Twilio account
 
 def send_email(to_emails, subject, message, request_id=None):
-    """Send email notification using SMTP"""
-    print(f"\n=== EMAIL NOTIFICATION TRIGGERED ===")
+    """Send email notification using SendGrid Web API v3 with dynamic template"""
+   print(f"\n=== EMAIL NOTIFICATION TRIGGERED ===")
     print(f"To: {to_emails}")
     print(f"Subject: {subject}")
     print(f"Message: {message}")
