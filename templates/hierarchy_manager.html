@@ -1,0 +1,254 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Hierarchy Manager - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-sitemap"></i> Organization Hierarchy Manager</h4>
+                <small class="text-muted">Drag and drop users to reorganize the hierarchy</small>
+            </div>
+            <div class="card-body">
+                {% csrf_token %}
+                <div id="hierarchy-container" class="hierarchy-tree">
+                    {% for profile in root_profiles %}
+                        {% include 'hierarchy_node.html' with profile=profile %}
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Unassigned Users</h6>
+                    <div id="unassigned-users" class="unassigned-container">
+                        {% for profile in unassigned_profiles %}
+                            <div class="user-card" data-user-id="{{ profile.user.id }}" draggable="true">
+                                <i class="fas fa-user"></i>
+                                {{ profile.user.get_full_name }}
+                                <span class="badge bg-secondary">{{ profile.get_role_display }}</span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hierarchy-tree {
+    padding: 20px;
+    background-color: var(--sage-light);
+    border-radius: 12px;
+    min-height: 400px;
+}
+
+.hierarchy-node {
+    margin: 10px 0;
+    padding: 15px;
+    background-color: white;
+    border: 2px solid var(--beige-medium);
+    border-radius: 8px;
+    position: relative;
+}
+
+.hierarchy-node.drag-over {
+    border-color: var(--sage-dark);
+    background-color: var(--sage-light);
+}
+
+.user-card {
+    display: inline-block;
+    padding: 8px 12px;
+    margin: 5px;
+    background-color: white;
+    border: 1px solid var(--beige-medium);
+    border-radius: 6px;
+    cursor: move;
+    transition: all 0.3s ease;
+}
+
+.user-card:hover {
+    box-shadow: 0 2px 8px rgba(143, 166, 142, 0.2);
+    transform: translateY(-2px);
+}
+
+.user-card.dragging {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}
+
+.user-info {
+    padding: 10px;
+    background-color: var(--olive-light);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    border: 2px solid var(--olive-medium);
+}
+
+.children-container {
+    margin-left: 30px;
+    margin-top: 15px;
+    padding-left: 20px;
+    border-left: 2px dashed var(--olive-medium);
+}
+
+.unassigned-container {
+    min-height: 100px;
+    padding: 15px;
+    background-color: var(--beige-light);
+    border: 2px dashed var(--beige-medium);
+    border-radius: 8px;
+}
+
+.drop-zone {
+    min-height: 50px;
+    padding: 10px;
+    border: 2px dashed var(--sage-medium);
+    border-radius: 6px;
+    margin: 10px 0;
+    text-align: center;
+    color: var(--olive-dark);
+}
+
+.drop-zone.drag-over {
+    border-color: var(--sage-dark);
+    background-color: var(--sage-light);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let draggedElement = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDragAndDrop();
+});
+
+function initializeDragAndDrop() {
+    // Make user cards draggable
+    document.querySelectorAll('.user-card').forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+    });
+
+    // Make hierarchy nodes drop zones
+    document.querySelectorAll('.hierarchy-node, .unassigned-container').forEach(zone => {
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('drop', handleDrop);
+        zone.addEventListener('dragenter', handleDragEnter);
+        zone.addEventListener('dragleave', handleDragLeave);
+    });
+}
+
+function handleDragStart(e) {
+    draggedElement = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', this.outerHTML);
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    draggedElement = null;
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDragEnter(e) {
+    this.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    this.classList.remove('drag-over');
+
+    if (draggedElement && draggedElement !== this) {
+        const userId = draggedElement.dataset.userId;
+        let newParentId = null;
+        
+        // Determine the new parent based on drop target
+        if (this.classList.contains('drop-zone')) {
+            newParentId = this.dataset.parentId;
+        } else if (this.classList.contains('hierarchy-node')) {
+            newParentId = this.dataset.userId;
+        } else if (this.classList.contains('unassigned-container')) {
+            newParentId = null;
+        } else {
+            // If dropped on children container, find parent
+            const parentNode = this.closest('.hierarchy-node');
+            newParentId = parentNode ? parentNode.dataset.userId : null;
+        }
+        
+        console.log('Dropping user', userId, 'under parent', newParentId);
+        
+        // Update hierarchy via AJAX
+        updateHierarchy(userId, newParentId);
+    }
+
+    return false;
+}
+
+function updateHierarchy(userId, newParentId) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    fetch('/api/update-hierarchy/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            user_id: userId,
+            new_parent_id: newParentId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Hierarchy updated successfully! Refreshing page...', 'success');
+            // Refresh page to show updated hierarchy
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
+        } else {
+            showAlert('Error updating hierarchy: ' + data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Network error:', error);
+        showAlert('Network error: ' + error, 'danger');
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.row'));
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

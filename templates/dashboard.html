@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>Welcome, {{ user.get_full_name|default:user.username }}!</h2>
+        <p class="text-muted">Role: {{ user_profile.get_role_display }}</p>
+    </div>
+</div>
+
+{% if notifications %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bell"></i> Recent Notifications</h5>
+            </div>
+            <div class="card-body">
+                {% for notification in notifications %}
+                <div class="alert alert-info alert-dismissible">
+                    {{ notification.message }}
+                    {% if notification.site_visit_request %}
+                    <a href="{% url 'request_detail' notification.site_visit_request.id %}" class="btn btn-sm btn-outline-primary ms-2">View Request</a>
+                    {% endif %}
+                    <button type="button" class="btn-close" onclick="markAsRead({{ notification.id }})"></button>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-plus"></i> Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'create_request' %}" class="btn btn-primary btn-lg w-100 mb-2">
+                    <i class="fas fa-map-marker-alt"></i> Create Site Visit Request
+                </a>
+                <a href="{% url 'my_requests' %}" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-list"></i> View My Requests
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history"></i> Recent Requests</h5>
+            </div>
+            <div class="card-body">
+                {% if my_requests %}
+                    {% for request in my_requests %}
+                    <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                        <div>
+                            <strong>{{ request.customer_broker_name }}</strong><br>
+                            <small class="text-muted">{{ request.created_at|date:"M d, Y" }}</small>
+                        </div>
+                        <span class="badge bg-{% if request.status == 'approved' %}success{% elif request.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                            {{ request.get_status_display }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">No requests yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if 'Admin' in user_profile.role or 'Sales Director' in user_profile.role %}
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> System Overview</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <h3 class="text-primary">{{ total_requests }}</h3>
+                    <p class="text-muted">Total Requests</p>
+                </div>
+                <div class="mb-3">
+                    <h4 class="text-warning">{{ pending_requests|length }}</h4>
+                    <p class="text-muted">Pending Approvals</p>
+                </div>
+                <a href="{% url 'view_requests' %}" class="btn btn-primary w-100 mb-2">View All Requests</a>
+                <a href="{% url 'export_csv' %}" class="btn btn-success w-100">Export CSV</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Recent Site Visit Requests</h5>
+            </div>
+            <div class="card-body">
+                {% if all_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Customer</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in all_requests %}
+                                <tr>
+                                    <td>{{ request.team_member.get_full_name }}</td>
+                                    <td>{{ request.customer_broker_name|truncatechars:20 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if request.status == 'approved' %}success{% elif request.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ request.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.created_at|date:"M d" }}</td>
+                                    <td>
+                                        <a href="{% url 'request_detail' request.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">No requests yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% elif pending_requests %}
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clock"></i> Pending Approvals</h5>
+            </div>
+            <div class="card-body">
+                {% for request in pending_requests %}
+                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                    <div>
+                        <strong>{{ request.customer_broker_name }}</strong><br>
+                        <small class="text-muted">by {{ request.team_member.get_full_name }} - {{ request.created_at|date:"M d, Y" }}</small>
+                    </div>
+                    <a href="{% url 'request_detail' request.id %}" class="btn btn-sm btn-primary">Review</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar"></i> Quick Stats</h5>
+            </div>
+            <div class="card-body">
+                <a href="{% url 'view_requests' %}" class="btn btn-outline-primary w-100">View All Requests</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markAsRead(notificationId) {
+    fetch(`/notification/${notificationId}/read/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+    });
+}
+</script>
+{% endblock %}

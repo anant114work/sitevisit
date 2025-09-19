@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Users - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-upload"></i> Upload Users from Excel</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.excel_file.id_for_label }}" class="form-label">Excel File</label>
+                        {{ form.excel_file }}
+                        <div class="form-text">{{ form.excel_file.help_text }}</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-upload"></i> Upload Users
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Excel Format</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Required Columns:</strong></p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Name</li>
+                    <li><i class="fas fa-check text-success"></i> Email</li>
+                    <li><i class="fas fa-check text-success"></i> Phone</li>
+                    <li><i class="fas fa-check text-success"></i> Parent User</li>
+                    <li><i class="fas fa-check text-success"></i> Role</li>
+                </ul>
+                
+                <p><strong>Valid Roles:</strong></p>
+                <ul class="small">
+                    <li>Sales Executive - T5</li>
+                    <li>Team leader - t3</li>
+                    <li>TEAM Head - T2</li>
+                    <li>Sales Manager - T4</li>
+                    <li>Sales Director - T1</li>
+                    <li>Admin</li>
+                    <li>BROKER</li>
+                    <li>Telecaller - T6</li>
+                    <li>Commercial</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

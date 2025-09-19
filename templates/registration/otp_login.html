@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block title %}OTP Login - CRM System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header text-center">
+                <h4><i class="fas fa-mobile-alt"></i> OTP Verification</h4>
+                <small class="text-muted">First-time login requires OTP verification</small>
+            </div>
+            <div class="card-body">
+                {% if step == 'phone' %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Enter your registered phone number</label>
+                            <input type="tel" name="phone_number" class="form-control" 
+                                   placeholder="Enter 10-digit mobile number" required maxlength="10">
+                            <small class="text-muted">We'll send an OTP to verify your identity</small>
+                        </div>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Send OTP
+                            </button>
+                        </div>
+                    </form>
+                {% elif step == 'otp' %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        OTP sent to <strong>{{ masked_phone }}</strong>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="phone_number" value="{{ phone_number }}">
+                        <div class="mb-3">
+                            <label class="form-label">Enter 6-digit OTP</label>
+                            <input type="text" name="otp_code" class="form-control text-center" 
+                                   placeholder="000000" required maxlength="6" style="font-size: 1.5rem; letter-spacing: 0.5rem;">
+                            <small class="text-muted">OTP is valid for 5 minutes</small>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Verify OTP
+                            </button>
+                            <a href="{% url 'otp_login' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Change Phone Number
+                            </a>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-3">
+                        <button class="btn btn-link" onclick="resendOTP()">
+                            <i class="fas fa-redo"></i> Resend OTP
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="text-center mt-3">
+            <a href="{% url 'login' %}" class="btn btn-outline-primary">
+                <i class="fas fa-sign-in-alt"></i> Regular Login
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function resendOTP() {
+    fetch('{% url "resend_otp" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            'phone_number': '{{ phone_number }}'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('OTP resent successfully!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}

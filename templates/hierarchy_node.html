@@ -1,0 +1,29 @@
+<div class="hierarchy-node" data-user-id="{{ profile.user.id }}">
+    <div class="user-info">
+        <i class="fas fa-user-tie"></i>
+        <strong>{{ profile.user.get_full_name }}</strong>
+        <span class="badge bg-primary">{{ profile.get_role_display }}</span>
+        {% if profile.contact_number %}
+            <small class="text-muted">{{ profile.contact_number }}</small>
+        {% endif %}
+    </div>
+    
+    <div class="drop-zone" data-parent-id="{{ profile.user.id }}">
+        <small><i class="fas fa-arrow-down"></i> Drop users here to assign as subordinates</small>
+    </div>
+    
+    {% if profile.subordinates.all %}
+        <div class="children-container">
+            {% for subordinate in profile.subordinates.all %}
+                <div class="user-card" data-user-id="{{ subordinate.user.id }}" draggable="true">
+                    <i class="fas fa-user"></i>
+                    {{ subordinate.user.get_full_name }}
+                    <span class="badge bg-secondary">{{ subordinate.get_role_display }}</span>
+                </div>
+                {% if subordinate.subordinates.all %}
+                    {% include 'hierarchy_node.html' with profile=subordinate %}
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>

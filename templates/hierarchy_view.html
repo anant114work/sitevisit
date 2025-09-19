@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+
+{% block title %}Hierarchy View - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-sitemap"></i> Organization Hierarchy</h4>
+                <small class="text-muted">View reporting structure and notification flow</small>
+            </div>
+            <div class="card-body">
+                {% for profile in root_profiles %}
+                    <div class="hierarchy-level mb-4">
+                        <div class="manager-card">
+                            <i class="fas fa-user-tie"></i>
+                            <strong>{{ profile.user.get_full_name }}</strong>
+                            <span class="badge bg-primary">{{ profile.get_role_display }}</span>
+                            <span class="badge bg-success">{{ profile.contact_number }}</span>
+                        </div>
+                        
+                        {% if profile.subordinates.all %}
+                            <div class="subordinates-list">
+                                {% for subordinate in profile.subordinates.all %}
+                                    <div class="subordinate-card">
+                                        <i class="fas fa-user"></i>
+                                        {{ subordinate.user.get_full_name }}
+                                        <span class="badge bg-secondary">{{ subordinate.get_role_display }}</span>
+                                        <span class="badge bg-info">{{ subordinate.contact_number }}</span>
+                                        <form method="post" class="d-inline ms-2">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="user_id" value="{{ subordinate.user.id }}">
+                                            <input type="hidden" name="action" value="unassign">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from hierarchy">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        
+                                        {% if subordinate.subordinates.all %}
+                                            <div class="sub-subordinates">
+                                                {% for sub in subordinate.subordinates.all %}
+                                                    <div class="sub-subordinate-card">
+                                                        <i class="fas fa-user-circle"></i>
+                                                        {{ sub.user.get_full_name }}
+                                                        <span class="badge bg-light text-dark">{{ sub.get_role_display }}</span>
+                                                        <form method="post" class="d-inline ms-2">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="user_id" value="{{ sub.user.id }}">
+                                                            <input type="hidden" name="action" value="unassign">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from hierarchy">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="assign-section mt-3">
+                            <form method="post" class="row g-2">
+                                {% csrf_token %}
+                                <div class="col-md-8">
+                                    <select name="user_id" class="form-select form-select-sm" required>
+                                        <option value="">Select user to assign under {{ profile.user.get_full_name }}</option>
+                                        {% for unassigned in unassigned_profiles %}
+                                            <option value="{{ unassigned.user.id }}">{{ unassigned.user.get_full_name }} ({{ unassigned.get_role_display }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="hidden" name="parent_id" value="{{ profile.user.id }}">
+                                    <input type="hidden" name="action" value="assign">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="fas fa-plus"></i> Assign
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+                
+                {% if unassigned_profiles %}
+                    <div class="unassigned-section mt-4">
+                        <h6><i class="fas fa-users"></i> Unassigned Users</h6>
+                        <div class="unassigned-list">
+                            {% for profile in unassigned_profiles %}
+                                <div class="unassigned-card">
+                                    <i class="fas fa-user"></i>
+                                    {{ profile.user.get_full_name }}
+                                    <span class="badge bg-warning">{{ profile.get_role_display }}</span>
+                                    <span class="badge bg-secondary">{{ profile.contact_number }}</span>
+                                    
+                                    <form method="post" class="d-inline ms-2">
+                                        {% csrf_token %}
+                                        <div class="input-group input-group-sm" style="width: 200px; display: inline-flex;">
+                                            <select name="parent_id" class="form-select form-select-sm">
+                                                <option value="">Assign to...</option>
+                                                {% for manager in root_profiles %}
+                                                    <option value="{{ manager.user.id }}">{{ manager.user.get_full_name }}</option>
+                                                    {% for sub in manager.subordinates.all %}
+                                                        <option value="{{ sub.user.id }}">-- {{ sub.user.get_full_name }}</option>
+                                                    {% endfor %}
+                                                {% endfor %}
+                                            </select>
+                                            <input type="hidden" name="user_id" value="{{ profile.user.id }}">
+                                            <input type="hidden" name="action" value="assign">
+                                            <button type="submit" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-arrow-right"></i>
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bell"></i> WhatsApp Notification Flow</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6>When a site visit request is created:</h6>
+                    <ol>
+                        <li><strong>Direct Manager</strong> - Gets WhatsApp notification immediately</li>
+                        <li><strong>All Hierarchy Chain</strong> - Each level up gets notification</li>
+                        <li><strong>HR Team</strong> - Admin and HR contacts get notification</li>
+                        <li><strong>Template Used</strong> - "New site visit requested by [Name] for [Customer] for the date [Date]"</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.manager-card {
+    padding: 15px;
+    background-color: var(--sage-light);
+    border: 2px solid var(--sage-dark);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.subordinates-list {
+    margin-left: 30px;
+    border-left: 3px solid var(--olive-medium);
+    padding-left: 20px;
+}
+
+.subordinate-card {
+    padding: 10px;
+    background-color: var(--beige-light);
+    border: 1px solid var(--beige-medium);
+    border-radius: 6px;
+    margin: 10px 0;
+}
+
+.sub-subordinates {
+    margin-left: 20px;
+    margin-top: 10px;
+}
+
+.sub-subordinate-card {
+    padding: 8px;
+    background-color: white;
+    border: 1px solid var(--beige-medium);
+    border-radius: 4px;
+    margin: 5px 0;
+}
+
+.unassigned-section {
+    border-top: 2px dashed var(--olive-medium);
+    padding-top: 20px;
+}
+
+.unassigned-card {
+    display: block;
+    padding: 10px;
+    margin: 8px 0;
+    background-color: var(--cream);
+    border: 1px solid var(--warning-soft);
+    border-radius: 6px;
+}
+
+.assign-section {
+    padding: 10px;
+    background-color: var(--beige-light);
+    border: 1px dashed var(--sage-medium);
+    border-radius: 6px;
+}
+
+.subordinate-card, .sub-subordinate-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.subordinate-card .badge, .sub-subordinate-card .badge {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}

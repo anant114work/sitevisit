@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Location Responses - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-map-marked-alt"></i> Location Responses Tracking</h4>
+                <small class="text-muted">Track WhatsApp location responses from employees</small>
+            </div>
+            <div class="card-body">
+                {% if location_responses %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Phone</th>
+                                    <th>Request ID</th>
+                                    <th>Customer</th>
+                                    <th>Response Type</th>
+                                    <th>Location</th>
+                                    <th>Address</th>
+                                    <th>Received At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for response in location_responses %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ response.user.get_full_name }}</strong><br>
+                                        <small class="text-muted">{{ response.user.userprofile.get_role_display }}</small>
+                                    </td>
+                                    <td>{{ response.phone_number }}</td>
+                                    <td>
+                                        <a href="{% url 'request_detail' response.site_visit_request.id %}" class="btn btn-sm btn-outline-primary">
+                                            #{{ response.site_visit_request.id }}
+                                        </a>
+                                    </td>
+                                    <td>{{ response.site_visit_request.customer_broker_name }}</td>
+                                    <td>
+                                        {% if response.response_type == 'location' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-map-marker-alt"></i> Location
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-comment"></i> Text
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if response.latitude and response.longitude %}
+                                            <small>
+                                                Lat: {{ response.latitude|floatformat:6 }}<br>
+                                                Lng: {{ response.longitude|floatformat:6 }}
+                                            </small>
+                                        {% else %}
+                                            <span class="text-muted">No coordinates</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if response.address %}
+                                            <small>{{ response.address|truncatechars:50 }}</small>
+                                        {% elif response.message_content %}
+                                            <small>{{ response.message_content|truncatechars:50 }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No address</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ response.received_at|date:"M d, Y H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if response.latitude and response.longitude %}
+                                            <a href="https://maps.google.com/?q={{ response.latitude }},{{ response.longitude }}" 
+                                               target="_blank" class="btn btn-sm btn-success" title="View on Google Maps">
+                                                <i class="fas fa-map"></i>
+                                            </a>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No location responses received yet.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cog"></i> WhatsApp Webhook Setup</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6>Setup Instructions:</h6>
+                    <ol>
+                        <li>Configure WhatsApp webhook URL: <code>{{ request.build_absolute_uri }}/api/whatsapp-webhook/</code></li>
+                        <li>Set webhook to capture location and message responses</li>
+                        <li>Responses will automatically appear in this table</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Site Visit Request - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-map-marker-alt"></i> Create Site Visit Request</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" id="siteVisitForm">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Team Member Name</label>
+                                <input type="text" class="form-control" value="{{ user.get_full_name }}" readonly>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Contact Number</label>
+                                <input type="text" class="form-control" value="{{ user_profile.contact_number }}" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.project_name.id_for_label }}" class="form-label">Project Name *</label>
+                        {{ form.project_name }}
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.customer_broker_name.id_for_label }}" class="form-label">Customer/Broker Name *</label>
+                                {{ form.customer_broker_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.customer_broker_contact.id_for_label }}" class="form-label">Customer/Broker Contact *</label>
+                                {{ form.customer_broker_contact }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.visit_date.id_for_label }}" class="form-label">Visit Date *</label>
+                                {{ form.visit_date }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.location_city.id_for_label }}" class="form-label">Location City *</label>
+                                {{ form.location_city }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.location_address.id_for_label }}" class="form-label">Location Address *</label>
+                        {{ form.location_address }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-info" onclick="getCurrentLocation()">
+                            <i class="fas fa-location-arrow"></i> Get Current Location
+                        </button>
+                        <small class="text-muted d-block mt-1">Click to automatically capture your current location</small>
+                        <div id="locationStatus" class="mt-2"></div>
+                    </div>
+                    
+                    {{ form.latitude }}
+                    {{ form.longitude }}
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-paper-plane"></i> Submit Request
+                        </button>
+                        <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Instructions</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success"></i> Fill in all required fields</li>
+                    <li><i class="fas fa-check text-success"></i> Click "Get Current Location" to capture coordinates</li>
+                    <li><i class="fas fa-check text-success"></i> Your request will be sent for approval</li>
+                    <li><i class="fas fa-check text-success"></i> You'll receive notifications on status updates</li>
+                </ul>
+                <hr>
+                <h6><i class="fas fa-satellite"></i> GPS Tips</h6>
+                <ul class="list-unstyled small">
+                    <li><i class="fas fa-arrow-right text-primary"></i> Go outdoors for best accuracy</li>
+                    <li><i class="fas fa-arrow-right text-primary"></i> Wait 30-60 seconds for GPS lock</li>
+                    <li><i class="fas fa-arrow-right text-primary"></i> Avoid tall buildings/trees</li>
+                    <li><i class="fas fa-arrow-right text-primary"></i> Enable high accuracy in phone settings</li>
+                    <li><i class="fas fa-arrow-right text-primary"></i> Target: <50m accuracy</li>
+                    <li><i class="fas fa-arrow-right text-warning"></i> Poor accuracy (>1000m) = Use manual entry</li>
+                </ul>
+                <div class="alert alert-warning mt-3">
+                    <small><strong>Note:</strong> If accuracy is >1000m, manually enter address or use Google Maps to get coordinates.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let watchId = null;
+let bestAccuracy = Infinity;
+let attempts = 0;
+
+function getCurrentLocation() {
+    const statusDiv = document.getElementById('locationStatus');
+    bestAccuracy = Infinity;
+    attempts = 0;
+    
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+    }
+    
+    if (navigator.geolocation) {
+        statusDiv.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin"></i> Acquiring GPS lock...</div>';
+        
+        watchId = navigator.geolocation.watchPosition(
+            function(position) {
+                attempts++;
+                const coords = position.coords;
+                const timestamp = new Date(position.timestamp);
+                
+                console.log(`GPS Reading ${attempts}:`, {
+                    latitude: coords.latitude,
+                    longitude: coords.longitude,
+                    accuracy: coords.accuracy,
+                    timestamp: timestamp
+                });
+                
+                if (coords.accuracy < bestAccuracy) {
+                    bestAccuracy = coords.accuracy;
+                    
+                    document.getElementById('id_latitude').value = coords.latitude;
+                    document.getElementById('id_longitude').value = coords.longitude;
+                    
+                    statusDiv.innerHTML = `<div class="alert alert-info">
+                        <i class="fas fa-satellite"></i> Improving location... (Reading ${attempts})<br>
+                        <small>Best accuracy: ${coords.accuracy.toFixed(1)}m</small>
+                    </div>`;
+                    
+                    if (coords.accuracy <= 20) {
+                        navigator.geolocation.clearWatch(watchId);
+                        displayLocationResult(coords, timestamp, `GPS (${attempts} readings)`);
+                        return;
+                    }
+                }
+                
+                if (attempts >= 15) {
+                    navigator.geolocation.clearWatch(watchId);
+                    displayLocationResult(coords, timestamp, `GPS (${attempts} readings)`);
+                }
+            },
+            function(error) {
+                console.log('GPS Error:', error);
+                if (watchId) {
+                    navigator.geolocation.clearWatch(watchId);
+                }
+                
+                let errorMessage = 'GPS failed. ';
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage += 'Allow location access and try again.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage += 'Move outdoors for better signal.';
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage += 'GPS timeout - try again.';
+                        break;
+                }
+                
+                statusDiv.innerHTML = `<div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i> ${errorMessage}<br>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="tryManualLocation()">Enter Location Manually</button>
+                    <button class="btn btn-sm btn-outline-secondary mt-2 ms-2" onclick="getCurrentLocation()">Try Again</button>
+                </div>`;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+        
+        setTimeout(() => {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                if (attempts > 0) {
+                    statusDiv.innerHTML += '<br><small class="text-info">Stopped after 45 seconds</small>';
+                }
+            }
+        }, 45000);
+        
+    } else {
+        statusDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle"></i> Geolocation not supported.</div>';
+    }
+}
+
+function displayLocationResult(coords, timestamp, source) {
+    const statusDiv = document.getElementById('locationStatus');
+    const accuracy = coords.accuracy;
+    const age = new Date() - timestamp;
+    
+    let accuracyClass = accuracy <= 50 ? 'success' : accuracy <= 500 ? 'warning' : 'danger';
+    let accuracyText = accuracy <= 50 ? 'Good' : accuracy <= 500 ? 'Fair' : 'Poor (Use Manual Entry)';
+    
+    statusDiv.innerHTML = `<div class="alert alert-${accuracyClass === 'danger' ? 'warning' : 'success'}">
+        <i class="fas fa-check"></i> Location captured via ${source}!<br>
+        <small>Lat: ${coords.latitude.toFixed(8)}, Lng: ${coords.longitude.toFixed(8)}</small><br>
+        <span class="badge bg-${accuracyClass}">Accuracy: ${accuracy.toFixed(1)}m (${accuracyText})</span>
+        <span class="badge bg-secondary ms-1">Age: ${Math.round(age/1000)}s</span><br>
+        ${accuracy > 1000 ? '<div class="mt-2 text-danger"><i class="fas fa-exclamation-triangle"></i> <strong>Very poor accuracy!</strong> Consider using manual entry for precise location.</div>' : ''}
+        <div class="mt-2"><i class="fas fa-spinner fa-spin"></i> Getting precise address...</div>
+        ${accuracy > 1000 ? '<button class="btn btn-sm btn-warning mt-2" onclick="tryManualLocation()">Use Manual Entry Instead</button>' : ''}
+    </div>`;
+    
+    getAddressFromCoordinates(coords.latitude, coords.longitude);
+}
+
+function getAddressFromCoordinates(lat, lng) {
+    console.log('Attempting address lookup for:', lat, lng);
+    
+    fetch('/api/get-address/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            latitude: lat,
+            longitude: lng
+        })
+    })
+    .then(response => {
+        console.log('Address API response status:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Address API response data:', data);
+        
+        if (data.success && data.address) {
+            document.getElementById('id_location_address').value = data.address;
+            
+            const statusDiv = document.getElementById('locationStatus');
+            const currentContent = statusDiv.innerHTML;
+            const alertClass = data.note ? 'text-warning' : 'text-success';
+            const icon = data.note ? 'fas fa-exclamation-triangle' : 'fas fa-map-marker-alt';
+            
+            statusDiv.innerHTML = currentContent.replace(
+                '<div class="mt-2"><i class="fas fa-spinner fa-spin"></i> Getting precise address...</div>',
+                `<div class="mt-2 ${alertClass}"><i class="${icon}"></i> Address: ${data.address}</div>`
+            );
+        } else {
+            const errorMsg = data.error || 'Could not get address automatically';
+            console.error('Address lookup failed:', errorMsg);
+            
+            const statusDiv = document.getElementById('locationStatus');
+            const currentContent = statusDiv.innerHTML;
+            statusDiv.innerHTML = currentContent.replace(
+                '<div class="mt-2"><i class="fas fa-spinner fa-spin"></i> Getting precise address...</div>',
+                `<div class="mt-2 text-warning"><i class="fas fa-exclamation-triangle"></i> ${errorMsg}</div>`
+            );
+        }
+    })
+    .catch(error => {
+        console.error('Address lookup network error:', error);
+        const statusDiv = document.getElementById('locationStatus');
+        const currentContent = statusDiv.innerHTML;
+        statusDiv.innerHTML = currentContent.replace(
+            '<div class="mt-2"><i class="fas fa-spinner fa-spin"></i> Getting precise address...</div>',
+            `<div class="mt-2 text-warning"><i class="fas fa-exclamation-triangle"></i> Network error: ${error.message}</div>`
+        );
+    });
+}
+
+function tryManualLocation() {
+    const statusDiv = document.getElementById('locationStatus');
+    statusDiv.innerHTML = `<div class="alert alert-info">
+        <h6>Manual Location Entry</h6>
+        <div class="row">
+            <div class="col-6">
+                <input type="number" id="manualLat" class="form-control form-control-sm" placeholder="Latitude" step="any">
+            </div>
+            <div class="col-6">
+                <input type="number" id="manualLng" class="form-control form-control-sm" placeholder="Longitude" step="any">
+            </div>
+        </div>
+        <button class="btn btn-sm btn-success mt-2" onclick="setManualLocation()">Set Location</button>
+        <button class="btn btn-sm btn-outline-secondary mt-2 ms-1" onclick="getCurrentLocation()">Try GPS Again</button>
+        <br><small class="text-muted">Use Google Maps to find exact coordinates if needed</small>
+    </div>`;
+}
+
+function setManualLocation() {
+    const lat = document.getElementById('manualLat').value;
+    const lng = document.getElementById('manualLng').value;
+    
+    if (lat && lng) {
+        document.getElementById('id_latitude').value = lat;
+        document.getElementById('id_longitude').value = lng;
+        
+        const statusDiv = document.getElementById('locationStatus');
+        statusDiv.innerHTML = `<div class="alert alert-success">
+            <i class="fas fa-check"></i> Manual location set!<br>
+            <small>Lat: ${parseFloat(lat).toFixed(8)}, Lng: ${parseFloat(lng).toFixed(8)}</small>
+        </div>`;
+    } else {
+        alert('Please enter both latitude and longitude');
+    }
+}
+
+document.getElementById('siteVisitForm').addEventListener('submit', function(e) {
+    const lat = document.getElementById('id_latitude').value;
+    const lng = document.getElementById('id_longitude').value;
+    
+    if (!lat || !lng) {
+        e.preventDefault();
+        alert('Please capture your current location before submitting.');
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+
+{% block title %}Request Detail - CRM System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-info-circle"></i> Site Visit Request Details</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Team Member Information</h6>
+                        <p><strong>Name:</strong> {{ site_visit_request.team_member.get_full_name }}</p>
+                        <p><strong>Contact:</strong> {{ site_visit_request.team_member.userprofile.contact_number }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Customer/Broker Information</h6>
+                        <p><strong>Name:</strong> {{ site_visit_request.customer_broker_name }}</p>
+                        <p><strong>Contact:</strong> {{ site_visit_request.customer_broker_contact }}</p>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Location Details</h6>
+                        <p><strong>Address:</strong><br>{{ site_visit_request.location_address }}</p>
+                        {% if site_visit_request.latitude and site_visit_request.longitude %}
+                        <p><strong>Coordinates:</strong><br>
+                            Lat: {{ site_visit_request.latitude }}, Lng: {{ site_visit_request.longitude }}
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Request Status</h6>
+                        <p>
+                            <span class="badge bg-{% if site_visit_request.status == 'approved' %}success{% elif site_visit_request.status == 'rejected' %}danger{% else %}warning{% endif %} fs-6">
+                                {{ site_visit_request.get_status_display }}
+                            </span>
+                        </p>
+                        <p><strong>Created:</strong> {{ site_visit_request.created_at|date:"M d, Y H:i" }}</p>
+                        <p><strong>Updated:</strong> {{ site_visit_request.updated_at|date:"M d, Y H:i" }}</p>
+                    </div>
+                </div>
+                
+                {% if site_visit_request.latitude and site_visit_request.longitude %}
+                <hr>
+                <h6>Location Map</h6>
+                <div class="ratio ratio-16x9">
+                    <iframe 
+                        src="https://maps.google.com/maps?q={{ site_visit_request.latitude }},{{ site_visit_request.longitude }}&hl=en&z=15&output=embed"
+                        style="border:0;" 
+                        allowfullscreen="" 
+                        loading="lazy">
+                    </iframe>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if approvals %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-history"></i> Approval History</h5>
+            </div>
+            <div class="card-body">
+                {% for approval in approvals %}
+                <div class="d-flex justify-content-between align-items-start border-bottom py-3">
+                    <div>
+                        <h6 class="mb-1">{{ approval.approver.get_full_name }}</h6>
+                        <small class="text-muted">{{ approval.approver.userprofile.get_role_display }}</small>
+                        {% if approval.comments %}
+                        <p class="mt-2 mb-0">{{ approval.comments }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-{% if approval.action == 'approved' %}success{% else %}danger{% endif %}">
+                            {{ approval.get_action_display }}
+                        </span>
+                        <br>
+                        <small class="text-muted">{{ approval.timestamp|date:"M d, Y H:i" }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-4">
+        <!-- Debug: can_approve = {{ can_approve }}, user_role = {{ user_profile.role }}, request_status = {{ site_visit_request.status }} -->
+        {% if can_approve %}
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-check-circle"></i> Take Action</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.action.id_for_label }}" class="form-label">Action *</label>
+                        {{ form.action }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.comments.id_for_label }}" class="form-label">Comments</label>
+                        {{ form.comments }}
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Submit Decision
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Approval Status</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Waiting for approval from the next person in hierarchy.</p>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6><i class="fas fa-route"></i> Approval Workflow</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-column">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user text-primary me-2"></i>
+                        <span>RM</span>
+                        <i class="fas fa-check text-success ms-auto"></i>
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user-friends text-info me-2"></i>
+                        <span>Team Leader</span>
+                        {% if approvals|length >= 1 and approvals.0.action == 'approved' %}
+                        <i class="fas fa-check text-success ms-auto"></i>
+                        {% elif approvals|length >= 1 and approvals.0.action == 'rejected' %}
+                        <i class="fas fa-times text-danger ms-auto"></i>
+                        {% else %}
+                        <i class="fas fa-clock text-warning ms-auto"></i>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-users text-secondary me-2"></i>
+                        <span>Team Head</span>
+                        {% if approvals|length >= 2 and approvals.1.action == 'approved' %}
+                        <i class="fas fa-check text-success ms-auto"></i>
+                        {% elif approvals|length >= 2 and approvals.1.action == 'rejected' %}
+                        <i class="fas fa-times text-danger ms-auto"></i>
+                        {% elif approvals|length >= 1 and approvals.0.action == 'approved' %}
+                        <i class="fas fa-clock text-warning ms-auto"></i>
+                        {% else %}
+                        <i class="fas fa-minus text-muted ms-auto"></i>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-user-tie text-info me-2"></i>
+                        <span>Business Head</span>
+                        {% if approvals|length >= 3 and approvals.2.action == 'approved' %}
+                        <i class="fas fa-check text-success ms-auto"></i>
+                        {% elif approvals|length >= 3 and approvals.2.action == 'rejected' %}
+                        <i class="fas fa-times text-danger ms-auto"></i>
+                        {% elif approvals|length >= 2 and approvals.1.action == 'approved' %}
+                        <i class="fas fa-clock text-warning ms-auto"></i>
+                        {% else %}
+                        <i class="fas fa-minus text-muted ms-auto"></i>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-crown text-warning me-2"></i>
+                        <span>CGO</span>
+                        {% if approvals|length >= 4 and approvals.3.action == 'approved' %}
+                        <i class="fas fa-check text-success ms-auto"></i>
+                        {% elif approvals|length >= 4 and approvals.3.action == 'rejected' %}
+                        <i class="fas fa-times text-danger ms-auto"></i>
+                        {% elif approvals|length >= 3 and approvals.2.action == 'approved' %}
+                        <i class="fas fa-clock text-warning ms-auto"></i>
+                        {% else %}
+                        <i class="fas fa-minus text-muted ms-auto"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
